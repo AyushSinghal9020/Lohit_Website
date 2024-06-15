@@ -5,9 +5,6 @@ from langchain_cohere import ChatCohere
 from langchain_core.messages import HumanMessage
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-file = open('data.json').read() 
-data = file.split('\n')
-
 embedding_function = HuggingFaceEmbeddings(model_name = 'all-MiniLM-L6-v2')
 
 vc = FAISS.load_local('vc' , embeddings = embedding_function , allow_dangerous_deserialization = True)
