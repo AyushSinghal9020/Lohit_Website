@@ -1,13 +1,6 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-
 import streamlit as st 
-import os 
 
-import chromadb
-
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_cohere import ChatCohere
 from langchain_core.messages import HumanMessage
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -15,33 +8,14 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 file = open('data.json').read() 
 data = file.split('\n')
 
-client = chromadb.PersistentClient()
 embedding_function = HuggingFaceEmbeddings(model_name = 'all-MiniLM-L6-v2')
 
-try : collection = client.create_collection(name = 'extracted_data')
-
-except : 
-    
-    client.delete_collection(name = 'extracted_data')
-    collection = client.create_collection(name = 'extracted_data')
-
-collection.add(
-    ids = [str(index) for index in range(len(data))] , 
-    documents = [doc for doc in data]
-)
-
-vc = Chroma(
-    persist_directory = 'chroma_db' , 
-    client = client , 
-    collection_name = 'extracted_data' , 
-    embedding_function = embedding_function
-)
+vc = FAISS.load_local('vc' , embeddings = embedding_function , allow_dangerous_deserialization = True)
 
 def search(query) : 
 
     prompt = open('prompt.txt').read()
-    similar_docs = vc.similarity_search_with_score(query = prompt , k = len(vc.get()['documents']))
-    similar_docs = sorted(similar_docs , key = lambda val : val[1] , reverse = True)
+    similar_docs = vc.similarity_search(query = prompt , top_k = 20)
 
     img_doc = []
     text_doc = []
@@ -49,12 +23,11 @@ def search(query) :
     num_img_slides = 5
     num_slides = 5
 
-
     for doc in similar_docs : 
 
         if len(img_doc) >= num_img_slides and len(text_doc) >= num_slides : break 
 
-        content = doc[0].page_content
+        content = doc.page_content
 
         if 'image' in content : 
             if len(img_doc) < num_img_slides : img_doc.append(content)
